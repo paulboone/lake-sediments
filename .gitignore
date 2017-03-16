@@ -1,0 +1,9 @@
+*.tif
+*.pdf
+*.png
+*.xml
+*.mat
+figs
+results
+.DS_Store
+*.m~
