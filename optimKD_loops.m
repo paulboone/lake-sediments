@@ -1,12 +1,12 @@
 
 %% ttlem optimization procedure of K and D based on a single lake
 %% procedure to run model for optimization:
-%>compute the obesrved erosion rate  and its uncertainty
-%>define the extent of the basin area as well as teh lake elements
+%>compute the observed erosion rate  and its uncertainty
+%>define the extent of the basin area as well as the lake elements
 % >make an array of K D combinations.
-% >run the model to a recent amount of time where i have volume of sed
+% >run the model to a recent amount of time where I have volume of sed
 % computed
-% > compute the volume of seds produced - teh total change in elevation
+% > compute the volume of seds produced - the total change in elevation
 % within basin and not in lake*area
 % >compute the chi^2 between modeled and observed, for the error, use the
 % v/t err. Which is: 
@@ -14,15 +14,21 @@
 
 %%
 %% >load the DEM
-close all, clear all, clc
-fpath='/Users/shelef/Documents/work/grants/specific_grants/in_preperation/ak_lake_soil/data/dems/clipped_pairs/';
+%{
+PREREQ to even loading the file:
+Note that, throughout the use of TopoToolbox, it is assumed that the DEM has 
+a projected coordinate system (e.g. UTM WGS84) and that elevation and horizontal 
+coordinates are in meter units.
+%}
+close all, clear all, clc % clear all figures, all variables, and command window
+fpath='/Users/pboone/Dropbox/Projects/Classes/GEOL 2049/project-lake-sediment-analysis/';
 fname='clipped_jan1.tif';
-name=[fpath,fname];
+name=[fpath,fname]; % char concatenation
 DEM = GRIDobj(name);
 
 
 
-%% >compute the obesrved erosion rate  and its uncertainty
+%% >compute the observed erosion rate  and its uncertainty
 t0=6000%yr
 t1=0
 D=1.73;%m deposits
@@ -30,54 +36,68 @@ D=1.73;%m deposits
 %> DEM smooth
 hsize=10;%15
 sigma=2;%2
-h = fspecial('gaussian', hsize, sigma);
+h = fspecial('gaussian', hsize, sigma); % 2D gaussian filter from image processing toolkit
 %surf(h),shg
 
 DEM2=DEM;
-DEM2.Z=imfilter(DEM.Z, h, 'replicate');
+DEM2.Z=imfilter(DEM.Z, h, 'replicate'); % applies the image filter
 DEM=DEM2;
 
-%%fill sinks
-DEMf = fillsinks(DEM);
+%%fill sinks to correct for 'erroneous topographic depressions'
+DEMf = fillsinks(DEM); % topotoolbox
 
 %%flow direction object:
-FD = FLOWobj(DEMf);
+FD = FLOWobj(DEMf); % topotoolbox
 
 %%flow acc
-A = flowacc(FD);
-G=gradient8(DEM);
+A = flowacc(FD);  % topotoolbox
+G=gradient8(DEM); % topotoolbox
     
-%%when outlet is allready known
+imageschs(DEM, min(gradient8(DEM),1)) % image scaled colors  & hillshade
+
+%%when outlet is already known
+
+% imageschs(DEM, min(gradient8(DEM),1)
 i=15;%jan
 load ('resM_pairs19')
 resM=resM_pairs19;
 
-x=resM(i,1);
-y=resM(i,2);
+x=resM(i,1)
+y=resM(i,2)
 
 %% compute drainage basin for this outlet
-IX=coord2ind(DEM,x,y);%get index of outlet
-
-zo=DEM.Z(IX);%outlet elev
-B=drainagebasins(FD,IX);%get a binary grid of basin cells;
+IX=coord2ind(DEM,x,y);      % convert xy coordinates (NOT indices) to linear index to get Z index of outlet
+zo=DEM.Z(IX);               % outlet elev
+B=drainagebasins(FD,IX);    % get a binary grid of basin cells;
    
-%% detect lake
+%% detect lake 
+%{
+create binary grid of lake with the conditions:
+- must be in drainage basin
+- must have gradient < 0.03 <= WHAT does this actually mean? is this saying
+it is ~ flat?
+- must have height < less than outlet height + 1 (meter??)
+%}
 lk=DEM.Z*0;
-lk(B.Z==1 & G.Z<0.03 & DEM.Z<zo+1)=1;
-%
+lk(B.Z==1 & G.Z<0.03 & DEM.Z<zo+1)=1; % do all these conditions have a specific source?
+
+% create grid of z heights for every point in drainage basin
 Zb=DEM.Z*NaN;
 Zb(B.Z==1)=DEM.Z(B.Z==1);
-%
+
+% plot z heights for drainage basin
 imagesc(Zb);
 axis equal
 shg
 
 %% vol of sed in time frame
-Al=length(find(lk==1));
-Aw=A.Z(IX)-Al;
-pa=DEM.cellsize*DEM.cellsize;
-Vemp=D*Al*pa;
-Vemp_u=Vemp/2; %teh case of traingular cs rather than rect
+Al=length(find(lk==1)); % # of grid cells that are in the lake
+Aw=A.Z(IX)-Al; % # of upstream grid cells from outlet - cells in lake
+% shouldn't this be the same size as the basin though??
+
+pa=DEM.cellsize*DEM.cellsize; % cell area
+Vemp=D*Al*pa;   % total sediment volume = meters of sediment deposits * cells in lake * area in cell
+Vemp_u=Vemp/2;  % the case of triangular cs rather than rect ??
 
 %% >make an array of K D combinations.
 
@@ -89,12 +109,9 @@ p.TimeStep=t0;
 % p.TimeSpan=1e6;
 % p.TimeStep=1e5;
 
-
-
 %%Hillslope processes, parameters values
 %Set diffusivity parameter
 p.D=0.03;
-
 
 %%River incision parameters
 p.Kw = 3e-6;
@@ -109,31 +126,31 @@ p.AreaThresh = 2e5; % channel contributing area threshold, m²
 
 
 %%Threshold slopes
-p.Sc=1; %%21°)
+p.Sc=1; %%21°) Not the default, why?
 p.Sc_unit='tangent';
 
 
 %%Output
-p.ploteach=1;
+p.ploteach=1000000;
 p.saveeach=1;
 
 % Specify the location where the results can be stored (e.g.
 % p.resultsdir='C:\...\'); The default folder is the result file where the
 % main model structure is stored.
 % p.resultsdir='C:\...';
-p.fileprefix=['JanRunK',num2str(p.Kw), 'D', num2str(p.D), 't']; ;
+p.fileprefix=['JanRunK',num2str(p.Kw), 'D', num2str(p.D), 't'];
 
 %% Initialize parameter structure.
 % By making p an instance of ttlemset, the user ensures parameter values
 % are set in the right way
 p   = ttlemset(p);
-%% >run the model to a recent amount of time where i have volume of sed
+%% >run the model to a recent amount of time where I have volume of sed
 % computed
 U=DEM;
 U.Z=DEM.Z*0;
 ttlem_out = ttlem(DEM,U,p);
 
-%% > compute the volume of seds produced - teh total change in elevation
+%% > compute the volume of seds produced - the total change in elevation
 % within basin and not in lake*area
 out_name=[p.resultsdir 'JanRunK',num2str(p.Kw), 'D', num2str(p.D),'t', num2str(t0), '.mat'];
 load(out_name,'H1');
@@ -141,17 +158,18 @@ h0=H1;
 
 %%
 close all
-dzdt=DEM.Z-h0.Z;
+dzdt=DEM.Z-h0.Z; % difference between original and evolved DEM
+
 dzdtb=dzdt*NaN;
-dzdtb(B.Z==1 & lk~=1)=dzdt(B.Z==1 & lk~=1);
+dzdtb(B.Z==1 & lk~=1) = dzdt(B.Z==1 & lk~=1); % create ?z grid for cells in basin but not in lake
 
 subplot(1,2,1)
-imagesc(DEM),shg
-subplot(1,2,2)
-imagesc(dzdtb),shg
+imagesc(DEM),shg % show original DEM
+subplot(1,2,2)   
+imagesc(dzdtb),shg % show ?z grid DEM
 axis image;
 
-%% > compute teh eroded volume
+%% > compute the total eroded volume
 Vmod=nansum(dzdtb(:))*pa
 
 
@@ -166,8 +184,8 @@ chi2=(Vmod-Vemp).^2/Vemp_u^2;
 
 % D=[0:0.05:0.25]*10
 % K=[3e-5:0.0005:3e-3]*10
-D=linspace(0,0.5,20);%0:0.05:2.5*10
-K=linspace(0, 0.025,20);%3e-5:0.0005:3e-2
+D=linspace(0, 0.5,20);      %0:0.05:2.5*10
+K=linspace(0, 0.025,20);    %3e-5:0.0005:3e-2
 
 
 %
@@ -176,14 +194,14 @@ Md=0;
 chi2=0;
 for i=1:length(D);
     for j=1:length(K)
-        111
+%         111
         Mk(i,j)=K(j);
         Md(i,j)=D(i);
         %hillslope diff
         p.D=D(i);
         %%River incision parameters
         p.Kw =K(j);
-        222
+%         222
         %%
         p.fileprefix=['JanRunK',num2str(p.Kw), 'D', num2str(p.D), 't']; ;
         
@@ -196,8 +214,8 @@ for i=1:length(D);
         U=DEM;
         U.Z=DEM.Z*0;
         ttlem_out = ttlem(DEM,U,p);
-        333
-        %% > compute the volume of seds produced - teh total change in elevation
+%         333
+        %% > compute the volume of seds produced - the total change in elevation
         % within basin and not in lake*area
         out_name=[p.resultsdir 'JanRunK',num2str(p.Kw), 'D', num2str(p.D),'t', num2str(t0), '.mat'];
         load(out_name,'H1');
@@ -215,7 +233,7 @@ for i=1:length(D);
 %         imagesc(dzdtb),shg
 %         axis image;
         
-        %% > compute teh eroded volume
+        %% > compute the eroded volume
         Vmod=nansum(dzdtb(:))*pa
         
         
@@ -224,21 +242,26 @@ for i=1:length(D);
         % the
         
         chi2(i,j)=(Vmod-Vemp).^2/Vemp_u^2;
+        
+        disp(j)
     end
+    disp('#####################################')
+    disp(i)
+    disp('#####################################')
 end
 
 %%
-close all, contour(log10(chi2),20),shg  
+% close all, contour(log10(chi2),20),shg  
 
 %% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% ttlem optimization procedure of K and D based on 2 lakes lake
 %% procedure to run model for optimization:
-%>compute the obesrved erosion rate  and its uncertainty
-%>define the extent of the basin area as well as teh lake elements
+%>compute the observed erosion rate  and its uncertainty
+%>define the extent of the basin area as well as the lake elements
 % >make an array of K D combinations.
-% >run the model to a recent amount of time where i have volume of sed
+% >run the model to a recent amount of time where I have volume of sed
 % computed
-% > compute the volume of seds produced - teh total change in elevation
+% > compute the volume of seds produced - the total change in elevation
 % within basin and not in lake*area
 % >compute the chi^2 between modeled and observed, for the error, use the
 % v/t err. Which is: 
@@ -247,13 +270,13 @@ close all, contour(log10(chi2),20),shg
 %% make dem for lost lake
 %%>load the DEM 1
 close all, clear all, clc
-fpath='/Users/shelef/Documents/work/grants/specific_grants/in_preperation/ak_lake_soil/data/dems/clipped_pairs/';
+fpath='/Users/pboone/Dropbox/Projects/Classes/GEOL 2049/project-lake-sediment-analysis/';
 fname='clipped_jan1.tif';
 name=[fpath,fname];
 DEM1 = GRIDobj(name);
 
 %%get outlet 1
-%%when outlet is allready known
+%%when outlet is already known
 i=15;%jan
 load ('resM_pairs19')
 resM=resM_pairs19;
@@ -263,7 +286,7 @@ y1=resM(i,2);
 
 
 %% >load the DEM 2
-fpath='/Users/shelef/Documents/work/grants/specific_grants/in_preperation/ak_lake_soil/data/dems/clipped_pairs/';
+fpath='/Users/pboone/Dropbox/Projects/Classes/GEOL 2049/project-lake-sediment-analysis/';
 fname='clipped_lost.tif';
 name=[fpath,fname];
 DEM2 = GRIDobj(name);
@@ -295,20 +318,21 @@ DEM2 = GRIDobj(name);
 x2=3.523578530974025e+05;
 y2=1.612583134776515e+06;
 
-Dv=[D1, D2];
+% Dv=[D1, D2];
 
 %% inter the thickness at time at lost approxi 138
 % close all
 % plot ([122, 158], 	[5395,6607])
 % shg
 
-%% >compute the obesrved erosion rate  and its uncertainty
+%% >compute the observed erosion rate  and its uncertainty
 
 close all
 t0=6000%yr
 t1=0
 D1=1.73;%jan m deposits
 D2=1.38;%lost m deposits - interp
+Dv=[D1, D2];
 
 DEMv={DEM1, DEM2};
 xv=[x1, x2];
@@ -361,7 +385,7 @@ for i=1:2%loop through to compute erosion volume from real data
     imagesc(Zb);
     axis equal
     shg
-    pause
+%     pause
     
     3333
     %%vol of sed in time frame
@@ -433,7 +457,7 @@ chi2M=0;
 
 namev={'jan', 'lost'};
 
-%%jan is 0.001, teh optim D is 0.2
+%jan is 0.001, teh optim D is 0.2
 
 for i=1:length(D);
     for j=1:length(K)
@@ -509,12 +533,12 @@ ylabel('D [m^2yr^{-1}]');
 
 %%
 %save('chi2Mjanlost_Ath2e5', 'chi2M', 'Md', 'Mk');
-save('chi2Mjanlost_Ath0', 'chi2M', 'Md', 'Mk');
+% save('chi2Mjanlost_Ath0', 'chi2M', 'Md', 'Mk');
 
 %%
 clc
-load 'chi2Mjanlost_Ath2e5'%this is with thresh area
-%load 'chi2Mjanlost_Ath0'%this is without thresh Area 
+%load 'chi2Mjanlost_Ath2e5'%this is with thresh area
+load 'chi2Mjanlost_Ath0'%this is without thresh Area 
 %% increase res for visualization
 close all
 chi2i=(interp2(log10(chi2M),3));
@@ -540,7 +564,7 @@ title(hc, 'log(\chi^2)')
 shg
 
 %% export fig
-pathname='/Users/shelef/Documents/work/grants/specific_grants/in_preperation/ak_lake_soil/figs/';
+pathname='/Users/pboone/Dropbox/Projects/Classes/GEOL 2049/project-lake-sediment-analysis/figs/';
 %fname='all_lakes_rose_pairs';
 %fname='all_lakes_pairs';
 fname='KD_optim_lost_jan_myr';
@@ -703,7 +727,7 @@ plot([x0,x0+xlen], [y0,y0], '-k', 'linewidth', 2)
 text(x0, y0-10, [num2str(xlen*DEM.cellsize), 'm'])
 
 %% explrt fig
-pathname='/Users/shelef/Documents/work/grants/specific_grants/in_preperation/ak_lake_soil/figs/';
+pathname='/Users/pboone/Dropbox/Projects/Classes/GEOL 2049/project-lake-sediment-analysis/figs/';
 %fname='all_lakes_rose_pairs';
 %fname='all_lakes_pairs';
 fname='lost_erosion';
@@ -719,7 +743,7 @@ imagesc(dzdtb, [-1,1]),shg,colorbar
 %%
 dzdtc=dzdtc*40;
 %dzdtc=dzdtc./range(dzdtc(:))*3;
-sh=scatter(c,r,[],dzdtc(ind),'.');
+sh=scatter3(c,r,[],dzdtc(:),'.');
 range(dzdtc(:))
 colorbar
 %
@@ -729,7 +753,7 @@ contour(DEM.Z, 20, '-k')
 shg
 
 
-%% plot teh erosion value over the previous plot
+%% plot the erosion value over the previous plot
 close all
 hist(dzdtc(:)),shg
 %%
