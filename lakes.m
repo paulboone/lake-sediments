@@ -52,16 +52,11 @@ v_exp_lost = calculate_sediment_volume_from_core(lost_lake, 1.38);
 
 % v_mod = calculate_sediment_volume_via_model(jan_lake, ttlem_params);
 
-% d_vals = linspace(0, 0.3, 10);    %0:0.05:2.5*10
-% k_vals = linspace(0, 0.01, 10);  %3e-5:0.0005:3e-2
-d_vals = linspace(0, 0.5, 20);    %0:0.05:2.5*10
-k_vals = linspace(0, 0.025, 20);  %3e-5:0.0005:3e-2
+d_vals = linspace(0, 0.3, 10);    %0:0.05:2.5*10
+k_vals = linspace(0, 0.01, 10);  %3e-5:0.0005:3e-2
+% d_vals = linspace(0, 0.5, 20);    %0:0.05:2.5*10
+% k_vals = linspace(0, 0.025, 20);  %3e-5:0.0005:3e-2
 
-
-% D=linspace(0, 0.5,20);      %0:0.05:2.5*10
-% K=linspace(0, 0.025,20);    %3e-5:0.0005:3e-2
-
-% [Md, Mk]=meshgrid(D,K);
 
 for i=1:length(d_vals);
   for j=1:length(k_vals)
@@ -72,17 +67,18 @@ for i=1:length(d_vals);
     v_mod = calculate_sediment_volume_via_model(jan_lake, ttlem_params);
     chi2(i,j) = ((v_mod - v_exp_jan)^2)/(v_exp_jan^2);
 
-    % v_mod = calculate_sediment_volume_via_model(lost_lake, ttlem_params);
-    % chi2(i,j) = chi2(i,j) + ((v_mod - v_exp_lost)^2)/(v_exp_lost^2);
+    v_mod = calculate_sediment_volume_via_model(lost_lake, ttlem_params);
+    chi2(i,j) = chi2(i,j) + ((v_mod - v_exp_lost)^2)/(v_exp_lost^2);
 
     close all;
 
-    disp(ttlem_params);
-    disp([i, j, v_mod, chi2(i,j)]);
+%     disp(ttlem_params);
+%     disp([i, j, v_mod, chi2(i,j)]);
   end
   disp(i);
 end
 
+% close all, contour(log10(chi2), 20), shg
 imagesc(k_vals, d_vals, log10(chi2)), shg
 xlabel('K [m^{1-2m}yr^{-1}]');
 ylabel('D [m^2yr^{-1}]');
