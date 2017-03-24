@@ -39,11 +39,14 @@ ttlem_params.saveeach=1;
 
 %% run lake
 project_dir = '/Users/pboone/Dropbox/Projects/Classes/GEOL 2049/project-lake-sediment-analysis/';
-lost_lake = init_lake([project_dir, 'clipped_lost.tif'], 3.523578530974025e+05, 1.612583134776515e+06);
-jan_lake = init_lake([project_dir, 'clipped_jan1.tif'], 4.980370625e+05, 1.5489835e+06);
+lost_lake = Lake();
+lost_lake.load_from_geotiff([project_dir, 'clipped_lost.tif'], 3.523578530974025e+05, 1.612583134776515e+06);
 
-v_exp_jan = calculate_sediment_volume_from_core(jan_lake, 1.73);
-v_exp_lost = calculate_sediment_volume_from_core(lost_lake, 1.38);
+jan_lake = Lake();
+jan_lake.load_from_geotiff([project_dir, 'clipped_jan1.tif'], 4.980370625e+05, 1.5489835e+06);
+
+v_exp_jan = jan_lake.calculate_sediment_volume_from_core(1.73);
+v_exp_lost = lost_lake.calculate_sediment_volume_from_core(1.38);
 
 d_vals = linspace(0, 0.3, 10);
 k_vals = linspace(0, 0.01, 10);
@@ -55,10 +58,10 @@ for i=1:length(d_vals);
     ttlem_params.Kw = k_vals(j);
 
     ttlem_params = ttlemset(ttlem_params);
-    v_mod = calculate_sediment_volume_via_model(jan_lake, ttlem_params);
+    v_mod = jan_lake.calculate_sediment_volume_via_model(ttlem_params);
     chi2(i,j) = ((v_mod - v_exp_jan)^2)/(v_exp_jan^2);
 
-    v_mod = calculate_sediment_volume_via_model(lost_lake, ttlem_params);
+    v_mod = lost_lake.calculate_sediment_volume_via_model(ttlem_params);
     chi2(i,j) = chi2(i,j) + ((v_mod - v_exp_lost)^2)/(v_exp_lost^2);
 
     close all;
