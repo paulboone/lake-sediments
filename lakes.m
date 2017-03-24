@@ -51,7 +51,11 @@ v_exp_lost = lost_lake.calculate_sediment_volume_from_core(1.38);
 d_vals = linspace(0, 0.3, 10);
 k_vals = linspace(0, 0.01, 10);
 
-for i=1:length(d_vals);
+chi2 =      NaN(length(d_vals), length(k_vals));
+chi2jan =   NaN(length(d_vals), length(k_vals));
+chi2lost =  NaN(length(d_vals), length(k_vals));
+
+for i=1:length(d_vals)
   disp(['Progress: ' num2str(i-1) '/' num2str(length(d_vals))]);
   for j=1:length(k_vals)
     ttlem_params.D = d_vals(i);
@@ -59,18 +63,33 @@ for i=1:length(d_vals);
 
     ttlem_params = ttlemset(ttlem_params);
     v_mod = jan_lake.calculate_sediment_volume_via_model(ttlem_params);
-    chi2(i,j) = ((v_mod - v_exp_jan)^2)/(v_exp_jan^2);
+    chi2jan(i,j) = ((v_mod - v_exp_jan)^2)/(v_exp_jan^2);
 
     v_mod = lost_lake.calculate_sediment_volume_via_model(ttlem_params);
-    chi2(i,j) = chi2(i,j) + ((v_mod - v_exp_lost)^2)/(v_exp_lost^2);
+    chi2lost(i,j) = ((v_mod - v_exp_lost)^2)/(v_exp_lost^2);
 
+    chi2(i,j) = chi2jan(i,j) + chi2lost(i,j);
     close all;
   end
 end
 
+figure
+imagesc(k_vals, d_vals, log10(chi2jan))
+colorbar
+shg
+export_fig('chi2jan.png')
+
+figure
+imagesc(k_vals, d_vals, log10(chi2lost))
+colorbar
+shg
+export_fig('chi2lost.png')
+
+figure
 imagesc(k_vals, d_vals, log10(chi2))
 colorbar
 shg
+export_fig('chi2janlost.png')
 
 % still need to verify units on these:
 % xlabel('K [m^2yr^{-1}]');
