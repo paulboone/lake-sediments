@@ -38,12 +38,12 @@ ttlem_params.ploteach=inf;
 ttlem_params.saveeach=1;
 
 %% run lake
-project_dir = '/Users/pboone/Dropbox/Projects/Classes/GEOL 2049/project-lake-sediment-analysis/jan_lost_chi_squared/';
+project_dir = '/Users/pboone/Dropbox/Projects/Classes/GEOL 2049/project-lake-sediment-analysis/examples/';
 lost_lake = Lake();
 lost_lake.load_from_geotiff([project_dir, 'clipped_lost.tif'], 3.523578530974025e+05, 1.612583134776515e+06);
 
 jan_lake = Lake();
-jan_lake.load_from_geotiff([project_dir, 'clipped_jan1.tif'], 4.980370625e+05, 1.5489835e+06);
+jan_lake.load_from_geotiff([project_dir, 'clipped_jan.tif'], 4.980370625e+05, 1.5489835e+06);
 
 v_exp_jan = jan_lake.calculate_sediment_volume_from_core(1.73);
 v_exp_lost = lost_lake.calculate_sediment_volume_from_core(1.38);
