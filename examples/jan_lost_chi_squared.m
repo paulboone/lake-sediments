@@ -11,6 +11,9 @@ addpath ~/workspace/topotoolbox/DEMdata
 addpath ~/workspace/topotoolbox/ttlem
 addpath ~/workspace/topotoolbox/ttlem/LateralDisplacement
 
+addpath '~/Dropbox/Projects/Classes/GEOL 2049/project-lake-sediment-analysis/'
+
+
 addpath ~/workspace/export_fig
 %}
 
@@ -19,41 +22,36 @@ close all, clear all, clc
 %% TTLEM vars
 ttlem_params.TimeSpan = 6000;
 ttlem_params.TimeStep = 6000;
-
-% Hillslope processes, parameters values
 ttlem_params.m = 0.5;
 ttlem_params.n = 1;
-
-% Fixed or variable drainage network through time
 ttlem_params.DrainDir = 'variable';
-
 ttlem_params.AreaThresh = 2e5;     % channel contributing area threshold
-
-% Threshold slopes
 ttlem_params.Sc = 1;
 ttlem_params.Sc_unit = 'tangent';
-
-% Output
 ttlem_params.ploteach=inf;
 ttlem_params.saveeach=1;
 
-%% run lake
-project_dir = '/Users/pboone/Dropbox/Projects/Classes/GEOL 2049/project-lake-sediment-analysis/examples/';
-lost_lake = Lake();
-lost_lake.load_from_geotiff([project_dir, 'clipped_lost.tif'], 3.523578530974025e+05, 1.612583134776515e+06);
+%% lake params
+lake_defs = [{'clipped_lost.tif', 3.523578530974025e+05, 1.612583134776515e+06}; ...
+             {'clipped_jan.tif', 4.980370625e+05, 1.5489835e+06}];
 
-jan_lake = Lake();
-jan_lake.load_from_geotiff([project_dir, 'clipped_jan.tif'], 4.980370625e+05, 1.5489835e+06);
+core_depths = [1.38, 1.73]; % in m
 
-v_exp_jan = jan_lake.calculate_sediment_volume_from_core(1.73);
-v_exp_lost = lost_lake.calculate_sediment_volume_from_core(1.38);
+d_vals = linspace(0.0, 0.3, 10);
+k_vals = linspace(0.0, 0.01, 10);
 
-d_vals = linspace(0, 0.3, 10);
-k_vals = linspace(0, 0.01, 10);
+%% run lakes
+num_lakes = size(lake_defs,1);
 
-chi2 =      NaN(length(d_vals), length(k_vals));
-chi2jan =   NaN(length(d_vals), length(k_vals));
-chi2lost =  NaN(length(d_vals), length(k_vals));
+lakes(1,num_lakes) = Lake();
+exp_volumes = zeros(num_lakes);
+for i = 1:num_lakes
+  lake_def = lake_defs(i,:);
+  lakes(i).load_from_geotiff(lake_def{:});
+  exp_volumes(i) = lakes(i).calculate_sediment_volume_from_core(core_depths(i));
+end
+
+chi2 = NaN(num_lakes, length(d_vals), length(k_vals));
 
 for i=1:length(d_vals)
   disp(['Progress: ' num2str(i-1) '/' num2str(length(d_vals))]);
@@ -62,35 +60,35 @@ for i=1:length(d_vals)
     ttlem_params.Kw = k_vals(j);
 
     ttlem_params = ttlemset(ttlem_params);
-    v_mod = jan_lake.calculate_sediment_volume_via_model(ttlem_params);
-    chi2jan(i,j) = ((v_mod - v_exp_jan)^2)/(v_exp_jan^2);
 
-    v_mod = lost_lake.calculate_sediment_volume_via_model(ttlem_params);
-    chi2lost(i,j) = ((v_mod - v_exp_lost)^2)/(v_exp_lost^2);
+    for l=1:num_lakes
+      v_mod = lakes(l).calculate_sediment_volume_via_model(ttlem_params);
+      chi2(l,i,j) = ((v_mod - exp_volumes(l))^2)/(exp_volumes(l)^2);
+    end
 
-    chi2(i,j) = chi2jan(i,j) + chi2lost(i,j);
     close all;
   end
 end
 
-figure
-imagesc(k_vals, d_vals, log10(chi2jan))
-colorbar
-shg
-export_fig('chi2jan.png')
 
-figure
-imagesc(k_vals, d_vals, log10(chi2lost))
-colorbar
-shg
-export_fig('chi2lost.png')
+%% plot
+for i=1:num_lakes
+  lake = lakes(i);
+  lakechi2 = squeeze(chi2(i,:,:));
+  plotsave_chi2(lake.lake_name, lakechi2, k_vals, d_vals);
+end
 
-figure
-imagesc(k_vals, d_vals, log10(chi2))
-colorbar
-shg
-export_fig('chi2janlost.png')
-
-% still need to verify units on these:
-% xlabel('K [m^2yr^{-1}]');
-% ylabel('D [m^2yr^{-1}]');
+function plotsave_chi2(lake_name, lakechi2, k_vals, d_vals)
+  figure
+  imagesc(k_vals, d_vals, log10(lakechi2))
+  title(['Chi^2 graph of varying K,D values (', lake_name, ')'])
+  xlabel('K [m^2yr^{-1}]');
+  ylabel('D [m^2yr^{-1}]');
+  xticks(k_vals);
+  yticks(d_vals);
+  caxis([-4, 0])
+  colorbar
+  shg
+  save([lake_name,'.mat'], 'k_vals', 'd_vals', 'lakechi2');
+  export_fig(['chi2', lake_name, '.png']);
+end

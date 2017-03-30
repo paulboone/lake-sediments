@@ -7,7 +7,7 @@ classdef Lake < handle
     gaussian_sigma
     lake_gradient_threshold
     lake_depth_threshold
-
+    lake_name
 
   end
 
@@ -39,6 +39,10 @@ classdef Lake < handle
     end
 
     function load_from_geotiff(obj, geotiff_path, outlet_x, outlet_y)
+      if isempty(obj.lake_name)
+        [~,obj.lake_name,~] = fileparts(geotiff_path);
+        obj.lake_name = strrep(obj.lake_name, '_', '-');
+      end
       %% lake vars
       obj.dem = GRIDobj(geotiff_path);
       obj.cell_area = obj.dem.cellsize^2;
@@ -50,7 +54,7 @@ classdef Lake < handle
       % fill sinks
       obj.dem_filled = fillsinks(obj.dem);
       obj.flow_direction = FLOWobj(obj.dem_filled);
-      obj.gradient = gradient8(obj.dem_filled);
+      obj.gradient = gradient8(obj.dem);
 
       % find point in lake and max depth: lake should include point with deepest fill
       z_diff = obj.dem.Z - obj.dem_filled.Z;
@@ -80,10 +84,11 @@ classdef Lake < handle
       obj.drainage_basin_filter = d.Z;
       obj.lake_filter = obj.dem.Z*0;
       obj.lake_filter(obj.drainage_basin_filter == 1 & ...
+                       obj.gradient.Z < obj.lake_gradient_threshold & ...
                        obj.dem.Z < obj.outlet.z + obj.lake_depth_threshold ...
                        )=1;
       %% gradient condition commented out for now: REVISIT
-      % obj.gradient.Z < obj.lake_gradient_threshold & ...
+      %
       obj.num_lake_cells = length(find(obj.lake_filter == 1));
       % num_basin_cells = length(find(topo.drainage_basin_filter == 1)) - num_lake_cells;
     end
