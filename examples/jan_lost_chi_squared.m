@@ -86,9 +86,10 @@ function plotsave_chi2(lake_name, lakechi2, k_vals, d_vals)
   ylabel('D [m^2yr^{-1}]');
   xticks(k_vals);
   yticks(d_vals);
-  caxis([-4, 0])
+  caxis([-6, 0])
   colorbar
   shg
-  save([lake_name,'.mat'], 'k_vals', 'd_vals', 'lakechi2');
-  export_fig(['chi2', lake_name, '.png']);
+  file_basename = [lake_name,'_k', num2str(k_vals(1)), '_', num2str(k_vals(end)), '_d', num2str(d_vals(1)), '_', num2str(d_vals(end))];
+  save([file_basename, '.mat'], 'k_vals', 'd_vals', 'lakechi2');
+  export_fig(['chi2_', file_basename,  '.png']);
 end
