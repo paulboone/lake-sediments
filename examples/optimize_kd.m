@@ -18,9 +18,8 @@ close all, clear all, clc
 
 global lake ttlem_params v_exp
 
-project_dir = '/Users/pboone/Dropbox/Projects/Classes/GEOL 2049/project-lake-sediment-analysis/examples/';
 lake = Lake();
-lake.load_from_geotiff([project_dir, 'clipped_jan.tif'], NaN, NaN);
+lake.load_from_geotiff('clipped_jan.tif', NaN, NaN);
 v_exp = lake.calculate_sediment_volume_from_core(1.73);
 
 ttlem_params.TimeSpan = 6000;
@@ -34,9 +33,7 @@ ttlem_params.Sc_unit = 'tangent';
 ttlem_params.ploteach=inf;
 ttlem_params.saveeach=1;
 
-% x = sediment_volume_kd([0.5,0.5]);
-
-xmin = fminsearch(@sediment_volume_kd, [0.5, 0.5]);
+xmin = fminsearch(@sediment_volume_kd, [0.0011, 0.06]);
 disp(xmin);
 
 function chi2 = sediment_volume_kd(kd)
