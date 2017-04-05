@@ -16,12 +16,9 @@ addpath ~/workspace/export_fig
 
 close all, clear all, clc
 
-global lake ttlem_params v_exp
+global lakes ttlem_params exp_volumes
 
-lake = Lake();
-lake.load_from_geotiff('clipped_jan.tif', NaN, NaN);
-v_exp = lake.calculate_sediment_volume_from_core(1.73);
-
+%% TTLEM vars
 ttlem_params.TimeSpan = 6000;
 ttlem_params.TimeStep = 6000;
 ttlem_params.m = 0.5;
@@ -33,11 +30,31 @@ ttlem_params.Sc_unit = 'tangent';
 ttlem_params.ploteach=inf;
 ttlem_params.saveeach=1;
 
-xmin = fminsearch(@sediment_volume_kd, [0.0011, 0.06]);
+%% lake params
+
+lake_defs = [{'clipped_lost.tif', 3.523578530974025e+05, 1.612583134776515e+06}; ...
+             {'clipped_jan.tif', 4.980370625e+05, 1.5489835e+06}];
+
+core_depths = [1.38, 1.73]; % in m
+
+%% load lakes
+num_lakes = size(lake_defs,1);
+
+lakes = Lake();
+lakes(1,num_lakes) = Lake();
+exp_volumes = zeros(num_lakes);
+for i = 1:num_lakes
+  lake_def = lake_defs(i,:);
+  lakes(i).load_from_geotiff(lake_def{:});
+  exp_volumes(i) = lakes(i).calculate_sediment_volume_from_core(core_depths(i));
+end
+
+xmin = fminsearch(@sediment_volume_kd, [0.0012, 0.067 ]); 
+
 disp(xmin);
 
 function chi2 = sediment_volume_kd(kd)
-  global lake ttlem_params v_exp
+  global lakes ttlem_params exp_volumes
   
   k = kd(1);
   d = kd(2);
@@ -45,12 +62,7 @@ function chi2 = sediment_volume_kd(kd)
   if k < 0 || d < 0
     chi2 = 1000;
   else
-    ttlem_params.D = d;
-    ttlem_params.Kw = k;
-    ttlem_params = ttlemset(ttlem_params);
-
-    v_mod = lake.calculate_sediment_volume_via_model(ttlem_params);
-    chi2 = ((v_mod - v_exp)^2)/(v_exp^2);
+    [~, chi2] = calc_chi_for_lakes(lakes, exp_volumes, ttlem_params, k, d);
   end
   
   disp([k, d, chi2]);
