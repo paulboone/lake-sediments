@@ -19,36 +19,39 @@ addpath ~/workspace/export_fig
 
 close all, clear all, clc
 
-%% TTLEM vars
-ttlem_params = default_ttlem_params();
-
-%% lake params
-lake_defs = [{'clipped_lost.tif', 3.523578530974025e+05, 1.612583134776515e+06}; ...
+%% setup params
+m.ttlem_params = default_ttlem_params();
+m.lake_defs = [{'clipped_lost.tif', 3.523578530974025e+05, 1.612583134776515e+06}; ...
              {'clipped_jan.tif', 4.980370625e+05, 1.5489835e+06}];
 
-core_depths = [1.38, 1.73]; % in m
+m.core_depths = [1.38, 1.73]; % in m
 
-[lakes, exp_volumes] = load_lakes_volumes(lake_defs, core_depths);
-num_lakes = length(lakes);
+m.d_vals = linspace(0.0, 0.3, 9);
+m.k_vals = linspace(0.0, 0.01, 9);
+
 
 %% run lakes
-d_vals = linspace(0.02, 0.08, 2);
-k_vals = linspace(0.000275, 0.001125, 2);
+[lakes, exp_volumes] = load_lakes_volumes(m.lake_defs, m.core_depths);
+num_lakes = length(lakes);
 
-chi2 = NaN(num_lakes, length(d_vals), length(k_vals));
-chi2all = NaN(length(d_vals), length(k_vals));
-for i=1:length(d_vals)
-  disp(['Progress: ' num2str(i-1) '/' num2str(length(d_vals))]);
-  for j=1:length(k_vals)
-    [chi2(:,i,j), chi2all(i,j)] = calc_chi_for_lakes(lakes, exp_volumes, ttlem_params, k_vals(j), d_vals(i));
+chi2 = NaN(num_lakes, length(m.d_vals), length(m.k_vals));
+chi2all = NaN(length(m.d_vals), length(m.k_vals));
+for i=1:length(m.d_vals)
+  disp(['Progress: ' num2str(i-1) '/' num2str(length(m.d_vals))]);
+  for j=1:length(m.k_vals)
+    [chi2(:,i,j), chi2all(i,j)] = calc_chi_for_lakes(lakes, exp_volumes, m.ttlem_params, m.k_vals(j), m.d_vals(i));
   end
 end
 
 %% plot
 for i=1:num_lakes
   lake = lakes(i);
+  m_lakeonly = m;
+  m_lakeonly.lake_defs = m.lake_defs(i,:);
+  m_lakeonly.core_depths = m.core_depths(i);
+  
   lakechi2 = squeeze(chi2(i,:,:));
-  plotsave_chi2(lake.lake_name, lakechi2, k_vals, d_vals);
+  plotsave_chi2(lake.lake_name, lakechi2, m_lakeonly);
 end
 
-plotsave_chi2('all', chi2all, k_vals, d_vals);
+plotsave_chi2('all', chi2all, m);
