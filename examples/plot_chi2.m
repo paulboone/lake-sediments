@@ -1,5 +1,5 @@
 function plot_chi2(lake_name, lakechi2, k_vals, d_vals)
-  figure
+  figure('Position', [0, 0, 800, 800])
   imagesc(k_vals, d_vals, log10(lakechi2))
   title(['\chi^2 graph of varying K,D values (', lake_name, ')'])
   xlabel('K [m^2yr^{-1}]');
