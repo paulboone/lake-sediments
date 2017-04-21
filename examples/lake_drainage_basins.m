@@ -1,0 +1,16 @@
+
+
+lake_defs = [{'geotiffs/lost.tif', 3.525e+05, 1.6125e+06}; ...
+             {'geotiffs/jan.tif', 4.98e5, 1.549e6}; ...
+             {'geotiffs/birch.tif', 3.535e5, 1.614e6}; ...
+             {'geotiffs/harding.tif', 3.43e5, 1.625e6}; ...
+             {'geotiffs/burial.tif', -2.142e5, 2.061e6}; ...
+             {'geotiffs/meli.tif', -2.265e6, 5.682e5}];
+
+for i=1:size(lake_defs,1)
+  [filename, lake_point_x, lake_point_y] = lake_defs{i,:};
+  lake = locate_outlet(filename, lake_point_x, lake_point_y);
+
+  file_basename = [lake.lake_name, '_lake_shade'];
+  export_fig([file_basename, '.png']);
+end
