@@ -22,11 +22,10 @@ classdef Lake < handle
     drainage_basin_filter
 
     lake_point
-    lake_max_depth
     lake_filter
 
-
     num_lake_cells
+    num_basin_cells % warning: includes any cells in the lake!
   end
 
   methods
@@ -38,7 +37,7 @@ classdef Lake < handle
       obj.lake_depth_threshold = 1;
     end
 
-    function load_from_geotiff(obj, geotiff_path, outlet_x, outlet_y)
+    function load_from_geotiff(obj, geotiff_path, lake_point_x, lake_point_y)
       if isempty(obj.lake_name)
         [~,obj.lake_name,~] = fileparts(geotiff_path);
         obj.lake_name = strrep(obj.lake_name, '_', '-');
@@ -56,27 +55,25 @@ classdef Lake < handle
       obj.flow_direction = FLOWobj(obj.dem_filled);
       obj.gradient = gradient8(obj.dem);
 
-      % find point in lake and max depth: lake should include point with deepest fill
-      z_diff = obj.dem.Z - obj.dem_filled.Z;
-      [~, obj.lake_point.index] = min(z_diff(:));
-      [obj.lake_point.x,obj.lake_point.y] = ind2coord(obj.dem, obj.lake_point.index);
-      obj.lake_max_depth = z_diff(obj.lake_point.index);
-
-      % set or determine outlet
-      if ~isnan(outlet_x) && ~isnan(outlet_y)
-        obj.outlet.x = outlet_x;
-        obj.outlet.y = outlet_y;
-        obj.outlet.index = coord2ind(obj.dem, obj.outlet.x, obj.outlet.y);
+      if isnan(lake_point_x) || isnan(lake_point_y)
+        % no lake_point passed: let's find it. lake should include point with deepest fill
+        z_diff = obj.dem.Z - obj.dem_filled.Z;
+        [~, obj.lake_point.index] = min(z_diff(:));
+        [obj.lake_point.x,obj.lake_point.y] = ind2coord(obj.dem, obj.lake_point.index);
       else
-        % automatically determine outlet by finding deepest sink and
-        % following the flow pathway. outlet is first point in stream
-        % that has lower elevation
-        flowpath = obj.flow_direction.flowpathextract(obj.lake_point.index);
-        outlet_stream = flowpath(obj.dem_filled.Z(flowpath) < obj.dem_filled.Z(flowpath(1)));
-        obj.outlet.index = outlet_stream(1);
-        [obj.outlet.x, obj.outlet.y] = ind2coord(obj.dem, obj.outlet.index);
+        % just use lake point passed; this is necessary when there could be multiple lake
+        % basins in the geotiff.
+        obj.lake_point.x = lake_point_x;
+        obj.lake_point.y = lake_point_y;
+        obj.lake_point.index = coord2ind(obj.dem, obj.lake_point.x, obj.lake_point.y);
       end
 
+      % automatically determine outlet by finding deepest sink and following the flow pathway.
+      % outlet is first point in stream that has lower elevation
+      flowpath = obj.flow_direction.flowpathextract(obj.lake_point.index);
+      outlet_stream = flowpath(obj.dem_filled.Z(flowpath) < obj.dem_filled.Z(flowpath(1)));
+      obj.outlet.index = outlet_stream(1);
+      [obj.outlet.x, obj.outlet.y] = ind2coord(obj.dem, obj.outlet.index);
       obj.outlet.z = obj.dem.Z(obj.outlet.index);
 
       %% determine lake size
@@ -84,13 +81,13 @@ classdef Lake < handle
       obj.drainage_basin_filter = d.Z;
       obj.lake_filter = obj.dem.Z*0;
       obj.lake_filter(obj.drainage_basin_filter == 1 & ...
-                       obj.gradient.Z < obj.lake_gradient_threshold & ...
-                       obj.dem.Z < obj.outlet.z + obj.lake_depth_threshold ...
+                       obj.dem.Z <= obj.outlet.z + obj.lake_depth_threshold ...
                        )=1;
       %% gradient condition commented out for now: REVISIT
-      %
+      %obj.gradient.Z < obj.lake_gradient_threshold & ...
+
       obj.num_lake_cells = length(find(obj.lake_filter == 1));
-      % num_basin_cells = length(find(topo.drainage_basin_filter == 1)) - num_lake_cells;
+      obj.num_basin_cells = length(find(obj.drainage_basin_filter == 1));
     end
 
 
