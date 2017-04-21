@@ -21,14 +21,13 @@ close all, clear all, clc
 
 %% setup params
 m.ttlem_params = default_ttlem_params();
-m.lake_defs = [{'clipped_lost.tif', 3.523578530974025e+05, 1.612583134776515e+06}; ...
-             {'clipped_jan.tif', 4.980370625e+05, 1.5489835e+06}];
 
+m.lake_defs = [{'geotiffs/lost.tif', 3.525e+05, 1.6125e+06}; ...
+               {'geotiffs/jan.tif', 4.98e5, 1.549e6}];
 m.core_depths = [1.38, 1.73]; % in m
 
-m.d_vals = linspace(0.0, 0.3, 9);
 m.k_vals = linspace(0.0, 0.01, 9);
-
+m.d_vals = linspace(0.0, 0.3, 9);
 
 %% run lakes
 [lakes, exp_volumes] = load_lakes_volumes(m.lake_defs, m.core_depths);
